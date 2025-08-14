@@ -3,6 +3,8 @@ package lk.newnop.brms_api.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Data
 @Table(name = "books")
@@ -23,6 +25,9 @@ public class Book {
 
     @Enumerated(EnumType.STRING)
     @Column(name= "availability_status")
-    private AvailabilityStatus availabilityStatus;
+    private BookStatus availabilityStatus;
+
+    @OneToMany(mappedBy = "book")
+    private List<Rental> rentals;
 
 }
