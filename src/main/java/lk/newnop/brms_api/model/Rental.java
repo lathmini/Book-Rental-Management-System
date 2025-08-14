@@ -13,6 +13,8 @@ public class Rental {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String rentalId;
+
     @Column(name = "user_name", nullable = false)
     private String userName;
 

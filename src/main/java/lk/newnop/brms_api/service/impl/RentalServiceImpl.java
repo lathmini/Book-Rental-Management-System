@@ -1,5 +1,6 @@
 package lk.newnop.brms_api.service.impl;
 
+import lk.newnop.brms_api.controller.request.RentalRequestDTO;
 import lk.newnop.brms_api.exception.NotFoundException;
 import lk.newnop.brms_api.model.Book;
 import lk.newnop.brms_api.model.BookStatus;
@@ -21,14 +22,14 @@ public class RentalServiceImpl implements RentalService {
     private final BookRepository bookRepository;
 
     @Override
-    public List<Rental> getAllRentals() {
+    public List<Rental> findAll() {
         return rentalRepository.findAll();
     }
 
     @Override
-    public Rental createRental(Rental rental) throws NotFoundException, IllegalStateException {
-        Book book = bookRepository.findById(rental.getBook().getId())
-                .orElseThrow(() -> new NotFoundException("Book with ID " + rental.getBook().getId() + " not found."));
+    public Rental create(RentalRequestDTO rentalRequestDTO) throws NotFoundException, IllegalStateException {
+        Book book = bookRepository.findById(rentalRequestDTO.getBookId())
+                .orElseThrow(() -> new NotFoundException("Book with ID " + rentalRequestDTO.getBookId() + " not found."));
 
         if (book.getAvailabilityStatus() != BookStatus.AVAILABLE) {
             throw new IllegalStateException("Book is not available for rental.");
@@ -36,18 +37,24 @@ public class RentalServiceImpl implements RentalService {
 
         book.setAvailabilityStatus(BookStatus.RENTED);
         bookRepository.save(book);
+
+        Rental rental = new Rental();
+        rental.setUserName(rentalRequestDTO.getUserName());
+        rental.setUserEmail(rentalRequestDTO.getUserEmail());
+        rental.setBook(book);
         rental.setRentalDate(LocalDate.now());
+
         return rentalRepository.save(rental);
     }
 
     @Override
-    public Rental updateRental(Long id, Rental updatedRental) throws NotFoundException {
-        Rental existingRental = rentalRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Rental with ID " + id + " not found."));
+    public Rental updateRentalReturnDate(Long rentedId) throws NotFoundException {
+        Rental existingRental = rentalRepository.findById(rentedId)
+                .orElseThrow(() -> new NotFoundException("Rental with ID " + rentedId + " not found."));
 
-        existingRental.setReturnDate(updatedRental.getReturnDate());
-
-        if (updatedRental.getReturnDate() != null) {
+        // Only update if the return date isn't already set
+        if (existingRental.getReturnDate() == null) {
+            existingRental.setReturnDate(LocalDate.now());
             Book book = existingRental.getBook();
             book.setAvailabilityStatus(BookStatus.AVAILABLE);
             bookRepository.save(book);
