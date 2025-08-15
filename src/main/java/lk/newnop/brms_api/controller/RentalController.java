@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @AllArgsConstructor
+@RequestMapping("/api")
 public class RentalController {
 
 

@@ -17,7 +17,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(value = "/books", headers = "X-Api-Version=v1")
+@RequestMapping(value = "/api/books", headers = "X-Api-Version=v1")
 public class BookController {
 
     private final BookService bookService;
