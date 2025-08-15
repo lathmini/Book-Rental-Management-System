@@ -20,6 +20,6 @@ public class BookRequestDTO {
 
     private String genre;
 
-    @NotNull(message = "Availability status is required")
+
     private BookStatus availabilityStatus;
 }

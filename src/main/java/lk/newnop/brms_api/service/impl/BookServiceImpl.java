@@ -1,6 +1,7 @@
 package lk.newnop.brms_api.service.impl;
 
 import lk.newnop.brms_api.controller.request.BookRequestDTO;
+import lk.newnop.brms_api.exception.DuplicateBookException;
 import lk.newnop.brms_api.exception.NotFoundException;
 import lk.newnop.brms_api.model.Book;
 import lk.newnop.brms_api.model.BookStatus;
@@ -10,6 +11,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 
 @Service
@@ -18,34 +20,36 @@ public class BookServiceImpl implements BookService {
 
     private final BookRepository bookRepository;
 
-//    @Override
-//    public Book create(BookRequestDTO bookRequestDTO) {
-//        Book book = new Book();
-//        book.setTitle(bookRequestDTO.getTitle());
-//        book.setAuthor(bookRequestDTO.getAuthor());
-//        book.setGenre(bookRequestDTO.getGenre());
-//        book.setAvailabilityStatus(bookRequestDTO.getAvailabilityStatus());
-//        return bookRepository.save(book);
-//    }
-
     @Override
     public Book create(BookRequestDTO bookRequestDTO) {
         Book book = new Book();
 
-        // Generate a custom bookId if not provided
         if (bookRequestDTO.getBookId() != null && !bookRequestDTO.getBookId().isBlank()) {
             book.setBookId(bookRequestDTO.getBookId());
         } else {
-            book.setBookId(book.getBookId());
+            book.setBookId(UUID.randomUUID().toString());
+        }
+
+        if (bookRepository.existsByTitleAndAuthor(
+                bookRequestDTO.getTitle(),
+                bookRequestDTO.getAuthor())) {
+            throw new DuplicateBookException("Book already exists: " + bookRequestDTO.getTitle());
         }
 
         book.setTitle(bookRequestDTO.getTitle());
         book.setAuthor(bookRequestDTO.getAuthor());
         book.setGenre(bookRequestDTO.getGenre());
-        book.setAvailabilityStatus(bookRequestDTO.getAvailabilityStatus());
+
+        // Default availability status if null
+        if (bookRequestDTO.getAvailabilityStatus() == null) {
+            book.setAvailabilityStatus(BookStatus.AVAILABLE);
+        } else {
+            book.setAvailabilityStatus(bookRequestDTO.getAvailabilityStatus());
+        }
 
         return bookRepository.save(book);
     }
+
 
 
 
@@ -73,10 +77,8 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public void deleteById(Long bookId) throws NotFoundException {
-        if (!bookRepository.existsById(bookId)) {
-            throw new NotFoundException("Book with ID " + bookId + " not found.");
-        }
-        bookRepository.deleteById(bookId);
+        Book book = findById(bookId); // will throw NotFoundException if not found
+        bookRepository.delete(book);
     }
 
     @Override

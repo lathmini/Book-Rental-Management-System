@@ -8,22 +8,23 @@ import lk.newnop.brms_api.exception.DuplicateBookException;
 import lk.newnop.brms_api.exception.NotFoundException;
 import lk.newnop.brms_api.model.Book;
 import lk.newnop.brms_api.service.BookService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.validation.annotation.Validated;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-
 @RestController
+@RequiredArgsConstructor
+@RequestMapping(value = "/books", headers = "X-Api-Version=v1")
 public class BookController {
-    @Autowired
-    private BookService bookService;
 
-    @PostMapping(value = "/books", headers = "X-Api-Version=v1")
-    public BookResponseDTO create(@RequestBody @Validated BookRequestDTO bookRequestDTO) throws DuplicateBookException {
+    private final BookService bookService;
 
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public BookResponseDTO create(@RequestBody @Valid BookRequestDTO bookRequestDTO) throws DuplicateBookException {
         Book createdBook = bookService.create(bookRequestDTO);
 
         BookResponseDTO bookResponse = new BookResponseDTO();
@@ -37,7 +38,7 @@ public class BookController {
         return bookResponse;
     }
 
-    @GetMapping(value = "/books/{book-id}", headers = "X-Api-Version=v1")
+    @GetMapping("/{book-id}")
     public BookResponseDTO getById(@PathVariable("book-id") Long bookId) throws NotFoundException {
         Book getBook = bookService.findById(bookId);
 
@@ -47,13 +48,12 @@ public class BookController {
         bookResponseDTO.setTitle(getBook.getTitle());
         bookResponseDTO.setAuthor(getBook.getAuthor());
         bookResponseDTO.setGenre(getBook.getGenre());
-       // bookResponseDTO.getAvailabilityStatus(getBook.setAvailabilityStatus());
+        bookResponseDTO.setAvailabilityStatus(getBook.getAvailabilityStatus());
 
         return bookResponseDTO;
     }
 
-
-    @GetMapping(value = "/books", headers = "X-Api-Version=v1")
+    @GetMapping
     public BookResponseWrapper getAll() {
         List<Book> books = bookService.findAll();
         List<BookResponseDTO> bookResponseDTOS = new ArrayList<>();
@@ -66,28 +66,29 @@ public class BookController {
             bookResponseDTO.setAuthor(book.getAuthor());
             bookResponseDTO.setGenre(book.getGenre());
             bookResponseDTO.setAvailabilityStatus(book.getAvailabilityStatus());
-            bookResponseDTOS.add(bookResponseDTO); // This line was missing
+            bookResponseDTOS.add(bookResponseDTO);
         }
         return new BookResponseWrapper(bookResponseDTOS);
     }
 
-    @PutMapping(value = "/books/{book-id}", headers = "X-Api-Version=v1")
-    public BookResponseDTO updateById(@PathVariable("book-id") Long bookId, @Valid @RequestBody BookRequestDTO bookRequestDTO) throws NotFoundException {
-        BookResponseDTO bookResponseDTO = new BookResponseDTO();
+    @PutMapping("/{book-id}")
+    public BookResponseDTO updateById(@PathVariable("book-id") Long bookId,
+                                      @Valid @RequestBody BookRequestDTO bookRequestDTO) throws NotFoundException {
         Book book = bookService.updateById(bookId, bookRequestDTO);
 
+        BookResponseDTO bookResponseDTO = new BookResponseDTO();
         bookResponseDTO.setBookId(book.getBookId());
         bookResponseDTO.setTitle(book.getTitle());
         bookResponseDTO.setAuthor(book.getAuthor());
         bookResponseDTO.setGenre(book.getGenre());
-        //bookResponseDTO.setAvailabilityStatus(book.getAvailabilityStatus());
+        bookResponseDTO.setAvailabilityStatus(book.getAvailabilityStatus());
+
         return bookResponseDTO;
     }
 
-    @DeleteMapping(value = "/books/{book-id}", headers = "X-Api-Version=v1")
+    @DeleteMapping("/{book-id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteById(@PathVariable("book-id") Long bookId) throws NotFoundException {
         bookService.deleteById(bookId);
     }
-
-
 }

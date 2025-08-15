@@ -10,9 +10,11 @@ import lk.newnop.brms_api.repository.RentalRepository;
 import lk.newnop.brms_api.service.RentalService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -23,9 +25,11 @@ public class RentalServiceImpl implements RentalService {
 
     @Override
     public List<Rental> findAll() {
-        return rentalRepository.findAll();
+        return rentalRepository.findAllWithBooks();
     }
 
+
+    @Transactional
     @Override
     public Rental create(RentalRequestDTO rentalRequestDTO) throws NotFoundException, IllegalStateException {
         Book book = bookRepository.findById(rentalRequestDTO.getBookId())
@@ -39,6 +43,7 @@ public class RentalServiceImpl implements RentalService {
         bookRepository.save(book);
 
         Rental rental = new Rental();
+        rental.setRentalId(UUID.randomUUID().toString());
         rental.setUserName(rentalRequestDTO.getUserName());
         rental.setUserEmail(rentalRequestDTO.getUserEmail());
         rental.setBook(book);
@@ -47,6 +52,7 @@ public class RentalServiceImpl implements RentalService {
         return rentalRepository.save(rental);
     }
 
+    @Transactional
     @Override
     public Rental updateRentalReturnDate(Long rentedId) throws NotFoundException {
         Rental existingRental = rentalRepository.findById(rentedId)
@@ -58,6 +64,10 @@ public class RentalServiceImpl implements RentalService {
             Book book = existingRental.getBook();
             book.setAvailabilityStatus(BookStatus.AVAILABLE);
             bookRepository.save(book);
+        } else {
+            throw new IllegalStateException(
+                    "Rental already returned on " + existingRental.getReturnDate()
+            );
         }
 
         return rentalRepository.save(existingRental);

@@ -10,7 +10,6 @@ import lk.newnop.brms_api.model.Book;
 import lk.newnop.brms_api.model.Rental;
 import lk.newnop.brms_api.service.RentalService;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,7 +19,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class RentalController {
 
-    
+
     private final RentalService rentalService;
 
     @PostMapping(value = "/rentals", headers = "X-Api-Version=v1")
@@ -83,9 +82,9 @@ public class RentalController {
         return new RentalResponseWrapper(rentalResponses);
     }
 
-    @PutMapping(value = "rentals/return-id", headers = "X-Api-Version=v1")
-    public RentalResponseDTO updateRentalReturnDate(@PathVariable ("return-id") Long returnId,@Valid @RequestBody RentalRequestDTO rentalRequestDTO) throws NotFoundException {
-        Rental updatedRental = rentalService.updateRentalReturnDate(returnId);
+    @PutMapping(value = "/rentals/{rentalId}/return", headers = "X-Api-Version=v1")
+    public RentalResponseDTO updateRentalReturnDate(@PathVariable Long rentalId) throws NotFoundException {
+        Rental updatedRental = rentalService.updateRentalReturnDate(rentalId);
 
         RentalResponseDTO rentalResponse = new RentalResponseDTO();
         rentalResponse.setId(updatedRental.getId());
@@ -108,4 +107,5 @@ public class RentalController {
 
         return rentalResponse;
     }
+
 }

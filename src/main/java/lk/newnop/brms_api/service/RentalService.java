@@ -9,5 +9,5 @@ import java.util.List;
 public interface RentalService {
     List<Rental> findAll();
     Rental create(RentalRequestDTO rentalRequestDTO) throws NotFoundException, IllegalStateException;
-    Rental updateRentalReturnDate(Long id) throws NotFoundException;
+    Rental updateRentalReturnDate(Long rentalId) throws NotFoundException;
 }

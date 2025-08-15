@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Data
@@ -16,6 +17,12 @@ public class Book {
     private Long id;
 
     private String bookId;
+    @PrePersist
+    public void generateBookId() {
+        if (bookId == null) {
+            bookId = UUID.randomUUID().toString();
+        }
+    }
 
     @Column(nullable = false)
     private String title;
@@ -26,10 +33,12 @@ public class Book {
     private String genre;
 
     @Enumerated(EnumType.STRING)
-    @Column(name= "availability_status")
-    private BookStatus availabilityStatus;
+    @Column(name = "availability_status")
+    private BookStatus availabilityStatus = BookStatus.AVAILABLE;
 
-    @OneToMany(mappedBy = "book")
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Rental> rentals;
+
+
 
 }
