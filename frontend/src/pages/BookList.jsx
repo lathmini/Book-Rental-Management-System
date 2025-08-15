@@ -15,8 +15,11 @@ import {
   Chip,
   Card,
   CardHeader,
-  CardContent
+  CardContent,
+  Tooltip,
+  IconButton
 } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { getBooks, createRental } from '../services/api';
 import { useSnackbar } from 'notistack';
 import RentalForm from '../components/RentalForm';
@@ -29,21 +32,27 @@ const BookList = () => {
   const [rentalFormOpen, setRentalFormOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [isRenting, setIsRenting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 
+  const fetchBooks = async () => {
+    try {
+      const response = await getBooks();
+      setBooks(response.data.books || []);
+      setFilteredBooks(response.data.books || []);
+    } catch (error) {
+      console.error("Failed to load books:", error);
+      enqueueSnackbar('Failed to load books', {
+        variant: 'error',
+        preventDuplicate: true
+      });
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchBooks = async () => {
-      try {
-        const response = await getBooks();
-        setBooks(response.data.books || []);
-        setFilteredBooks(response.data.books || []);
-      } catch (error) {
-        console.error("Failed to load books:", error);
-        enqueueSnackbar('Failed to load books', { variant: 'error' });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchBooks();
   }, []);
 
@@ -55,6 +64,11 @@ const BookList = () => {
     );
     setFilteredBooks(filtered);
   }, [searchTerm, books]);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchBooks();
+  };
 
   const handleRentClick = (book) => {
     setSelectedBook(book);
@@ -70,16 +84,19 @@ const BookList = () => {
         userEmail
       });
 
+      // Refresh the book list to show updated availability
       const response = await getBooks();
       setBooks(response.data.books || []);
 
       enqueueSnackbar(`Successfully rented ${selectedBook.title}`, {
-        variant: 'success'
+        variant: 'success',
+        autoHideDuration: 3000
       });
     } catch (error) {
       console.error("Error renting book:", error);
       enqueueSnackbar(error.response?.data?.message || 'Error renting book', {
-        variant: 'error'
+        variant: 'error',
+        autoHideDuration: 4000
       });
     } finally {
       setIsRenting(false);
@@ -89,7 +106,12 @@ const BookList = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '200px'
+      }}>
         <CircularProgress />
         <Typography sx={{ ml: 2 }}>Loading books...</Typography>
       </Box>
@@ -101,36 +123,57 @@ const BookList = () => {
       <CardHeader
         title="Book Inventory"
         action={
-          <TextField
-            label="Search books"
-            variant="outlined"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            size="small"
-            sx={{ width: 300 }}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <TextField
+              label="Search books"
+              variant="outlined"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              size="small"
+              sx={{ width: 300 }}
+            />
+            <Tooltip title="Refresh book list">
+              <IconButton
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         }
       />
       <CardContent>
-        <TableContainer component={Paper} elevation={0}>
-          <Table sx={{ minWidth: 650 }} aria-label="simple table">
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{ maxHeight: 'calc(100vh - 300px)', overflow: 'auto' }}
+        >
+          <Table
+            sx={{ minWidth: 650 }}
+            aria-label="book inventory table"
+            stickyHeader
+          >
             <TableHead sx={{ bgcolor: 'background.paper' }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold' }}>Title</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Author</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Genre</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Action</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Title</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: '25%' }}>Author</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: '20%' }}>Genre</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: '15%' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: '10%' }}>Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredBooks.map((book) => (
                 <TableRow
                   key={book.id}
+                  hover
                   sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                 >
                   <TableCell component="th" scope="row">
-                    {book.title}
+                    <Typography fontWeight="medium">
+                      {book.title}
+                    </Typography>
                   </TableCell>
                   <TableCell>{book.author}</TableCell>
                   <TableCell>{book.genre || '-'}</TableCell>
@@ -139,6 +182,7 @@ const BookList = () => {
                       label={book.availabilityStatus}
                       color={book.availabilityStatus === 'AVAILABLE' ? 'success' : 'error'}
                       size="small"
+                      variant="outlined"
                     />
                   </TableCell>
                   <TableCell>
@@ -147,7 +191,13 @@ const BookList = () => {
                         variant="contained"
                         size="small"
                         onClick={() => handleRentClick(book)}
-                        sx={{ textTransform: 'none' }}
+                        sx={{
+                          textTransform: 'none',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: 1
+                          }
+                        }}
                       >
                         Rent
                       </Button>
@@ -164,9 +214,15 @@ const BookList = () => {
         </TableContainer>
 
         {filteredBooks.length === 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-            <Typography color="text.secondary">
-              No books found matching your search
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            p: 3,
+            minHeight: '100px'
+          }}>
+            <Typography variant="h6" color="text.secondary">
+              {searchTerm ? 'No matching books found' : 'No books available'}
             </Typography>
           </Box>
         )}

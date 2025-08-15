@@ -1,5 +1,4 @@
-// src/components/RentalForm.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
   Dialog,
@@ -8,13 +7,23 @@ import {
   DialogActions,
   TextField,
   Button,
-  Box
+  Box,
+  CircularProgress
 } from '@mui/material';
 
-export default function RentalForm({ open, onClose, onConfirm, bookTitle }) {
+export default function RentalForm({ open, onClose, onConfirm, bookTitle, isSubmitting }) {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [errors, setErrors] = useState({});
+
+  // Reset form when opening/closing
+  useEffect(() => {
+    if (open) {
+      setUserName('');
+      setUserEmail('');
+      setErrors({});
+    }
+  }, [open]);
 
   const validate = () => {
     const newErrors = {};
@@ -29,16 +38,7 @@ export default function RentalForm({ open, onClose, onConfirm, bookTitle }) {
   const handleSubmit = () => {
     if (validate()) {
       onConfirm({ userName, userEmail });
-      onClose();
     }
-  };
-
-  RentalForm.propTypes = {
-    open: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired,
-    onConfirm: PropTypes.func.isRequired,
-    bookTitle: PropTypes.string,
-    isSubmitting: PropTypes.bool
   };
 
   return (
@@ -47,6 +47,7 @@ export default function RentalForm({ open, onClose, onConfirm, bookTitle }) {
       <DialogContent>
         <Box sx={{ mt: 2 }}>
           <TextField
+            autoFocus
             label="Your Name"
             fullWidth
             value={userName}
@@ -54,6 +55,7 @@ export default function RentalForm({ open, onClose, onConfirm, bookTitle }) {
             error={!!errors.userName}
             helperText={errors.userName}
             sx={{ mb: 2 }}
+            disabled={isSubmitting}
           />
           <TextField
             label="Email Address"
@@ -63,19 +65,36 @@ export default function RentalForm({ open, onClose, onConfirm, bookTitle }) {
             onChange={(e) => setUserEmail(e.target.value)}
             error={!!errors.userEmail}
             helperText={errors.userEmail}
+            disabled={isSubmitting}
           />
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose} disabled={isSubmitting}>
+          Cancel
+        </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
           color="primary"
+          disabled={isSubmitting}
         >
-          Confirm Rental
+          {isSubmitting ? <CircularProgress size={24} /> : 'Confirm Rental'}
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
+
+RentalForm.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onConfirm: PropTypes.func.isRequired,
+  bookTitle: PropTypes.string,
+  isSubmitting: PropTypes.bool
+};
+
+RentalForm.defaultProps = {
+  bookTitle: '',
+  isSubmitting: false
+};
