@@ -19,20 +19,29 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
-  Tooltip
+  Tooltip,
+  ToggleButtonGroup,
+  ToggleButton,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import { getRentals, returnBook } from '../services/api';
 import { useSnackbar } from 'notistack';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import SearchIcon from '@mui/icons-material/Search';
 
 const RentalHistory = () => {
   const [rentals, setRentals] = useState([]);
+  const [filteredRentals, setFilteredRentals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [currentRental, setCurrentRental] = useState(null);
   const [isReturning, setIsReturning] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const { enqueueSnackbar } = useSnackbar();
 
   const loadRentals = async () => {
@@ -46,11 +55,13 @@ const RentalHistory = () => {
       }
 
       setRentals(rentalsData);
+      setFilteredRentals(rentalsData);
       setError(null);
     } catch (err) {
       console.error("Error loading rentals:", err);
       setError(err.message);
       setRentals([]);
+      setFilteredRentals([]);
       enqueueSnackbar('Failed to load rental history', { variant: 'error' });
     } finally {
       setLoading(false);
@@ -62,6 +73,30 @@ const RentalHistory = () => {
     loadRentals();
   }, []);
 
+  useEffect(() => {
+    let results = rentals;
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      const isReturned = statusFilter === 'returned';
+      results = results.filter(rental =>
+        isReturned ? rental.returnDate : !rental.returnDate
+      );
+    }
+
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      results = results.filter(rental =>
+        rental.book?.title?.toLowerCase().includes(term) ||
+        rental.userName?.toLowerCase().includes(term) ||
+        rental.userEmail?.toLowerCase().includes(term)
+      );
+    }
+
+    setFilteredRentals(results);
+  }, [rentals, statusFilter, searchTerm]);
+
   const handleReturnClick = (rental) => {
     setCurrentRental(rental);
     setConfirmOpen(true);
@@ -71,9 +106,10 @@ const RentalHistory = () => {
     setIsReturning(true);
     try {
       await returnBook(currentRental.id);
-      setRentals(rentals.map(r =>
+      const updatedRentals = rentals.map(r =>
         r.id === currentRental.id ? {...r, returnDate: new Date().toISOString()} : r
-      ));
+      );
+      setRentals(updatedRentals);
       enqueueSnackbar(`"${currentRental.book?.title}" marked as returned`, {
         variant: 'success',
         autoHideDuration: 3000
@@ -87,6 +123,12 @@ const RentalHistory = () => {
     } finally {
       setIsReturning(false);
       setConfirmOpen(false);
+    }
+  };
+
+  const handleStatusFilter = (event, newFilter) => {
+    if (newFilter !== null) {
+      setStatusFilter(newFilter);
     }
   };
 
@@ -125,16 +167,66 @@ const RentalHistory = () => {
       <CardHeader
         title="Rental History"
         action={
-          <Tooltip title="Refresh rental history">
-            <IconButton
-              onClick={loadRentals}
-              disabled={isRefreshing}
-            >
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title="Refresh rental history">
+              <IconButton
+                onClick={loadRentals}
+                disabled={isRefreshing}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         }
       />
+
+      {/* Filter Controls */}
+      <Box sx={{
+        p: 2,
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 2,
+        borderBottom: '1px solid',
+        borderColor: 'divider'
+      }}>
+        <TextField
+          variant="outlined"
+          size="small"
+          placeholder="Search rentals..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ width: 300 }}
+        />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto' }}>
+          <FilterListIcon color="action" sx={{ mr: 1 }} />
+          <ToggleButtonGroup
+            value={statusFilter}
+            exclusive
+            onChange={handleStatusFilter}
+            size="small"
+          >
+            <ToggleButton value="all" aria-label="All rentals">
+              <Typography variant="body2">All</Typography>
+            </ToggleButton>
+            <ToggleButton value="active" aria-label="Active rentals">
+              <Typography variant="body2">Active</Typography>
+            </ToggleButton>
+            <ToggleButton value="returned" aria-label="Returned rentals">
+              <Typography variant="body2">Returned</Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+      </Box>
+
       <TableContainer component={Paper} elevation={0}>
         <Table sx={{ minWidth: 650 }} aria-label="rental history table">
           <TableHead sx={{ bgcolor: 'background.paper' }}>
@@ -148,8 +240,8 @@ const RentalHistory = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rentals.length > 0 ? (
-              rentals.map((rental) => (
+            {filteredRentals.length > 0 ? (
+              filteredRentals.map((rental) => (
                 <TableRow key={rental.id} hover>
                   <TableCell>
                     <Typography fontWeight="medium">
@@ -204,7 +296,9 @@ const RentalHistory = () => {
               <TableRow>
                 <TableCell colSpan={6} align="center">
                   <Typography color="text.secondary" sx={{ py: 3 }}>
-                    No rental records found
+                    {searchTerm || statusFilter !== 'all'
+                      ? 'No matching rentals found'
+                      : 'No rental records found'}
                   </Typography>
                 </TableCell>
               </TableRow>

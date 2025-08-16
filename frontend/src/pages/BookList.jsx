@@ -17,9 +17,14 @@ import {
   CardHeader,
   CardContent,
   Tooltip,
-  IconButton
+  IconButton,
+  ToggleButtonGroup,
+  ToggleButton,
+  InputAdornment
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import SearchIcon from '@mui/icons-material/Search';
 import { getBooks, createRental } from '../services/api';
 import { useSnackbar } from 'notistack';
 import RentalForm from '../components/RentalForm';
@@ -33,6 +38,7 @@ const BookList = () => {
   const [selectedBook, setSelectedBook] = useState(null);
   const [isRenting, setIsRenting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [availabilityFilter, setAvailabilityFilter] = useState('all');
   const { enqueueSnackbar } = useSnackbar();
 
   const fetchBooks = async () => {
@@ -57,13 +63,29 @@ const BookList = () => {
   }, []);
 
   useEffect(() => {
-    const filtered = books.filter(book =>
-      book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.genre?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredBooks(filtered);
-  }, [searchTerm, books]);
+    let results = books;
+
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      results = results.filter(book =>
+        book.title.toLowerCase().includes(term) ||
+        book.author.toLowerCase().includes(term) ||
+        book.genre?.toLowerCase().includes(term)
+      );
+    }
+
+    // Apply availability filter
+    if (availabilityFilter !== 'all') {
+      results = results.filter(book =>
+        availabilityFilter === 'available'
+          ? book.availabilityStatus === 'AVAILABLE'
+          : book.availabilityStatus !== 'AVAILABLE'
+      );
+    }
+
+    setFilteredBooks(results);
+  }, [searchTerm, books, availabilityFilter]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -73,6 +95,12 @@ const BookList = () => {
   const handleRentClick = (book) => {
     setSelectedBook(book);
     setRentalFormOpen(true);
+  };
+
+  const handleAvailabilityFilter = (event, newFilter) => {
+    if (newFilter !== null) {
+      setAvailabilityFilter(newFilter);
+    }
   };
 
   const handleRentConfirm = async ({ userName, userEmail }) => {
@@ -123,26 +151,64 @@ const BookList = () => {
       <CardHeader
         title="Book Inventory"
         action={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <TextField
-              label="Search books"
-              variant="outlined"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              size="small"
-              sx={{ width: 300 }}
-            />
-            <Tooltip title="Refresh book list">
-              <IconButton
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-              >
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
+          <Tooltip title="Refresh book list">
+            <IconButton
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
         }
       />
+
+      {/* Filter Controls */}
+      <Box sx={{
+        p: 2,
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 2,
+        borderBottom: '1px solid',
+        borderColor: 'divider'
+      }}>
+        <TextField
+          variant="outlined"
+          size="small"
+          placeholder="Search books..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ width: 300 }}
+        />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto' }}>
+          <FilterListIcon color="action" sx={{ mr: 1 }} />
+          <ToggleButtonGroup
+            value={availabilityFilter}
+            exclusive
+            onChange={handleAvailabilityFilter}
+            size="small"
+          >
+            <ToggleButton value="all" aria-label="All books">
+              <Typography variant="body2">All</Typography>
+            </ToggleButton>
+            <ToggleButton value="available" aria-label="Available books">
+              <Typography variant="body2">Available</Typography>
+            </ToggleButton>
+            <ToggleButton value="rented" aria-label="Rented books">
+              <Typography variant="body2">Rented</Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+      </Box>
+
       <CardContent>
         <TableContainer
           component={Paper}
@@ -164,68 +230,66 @@ const BookList = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredBooks.map((book) => (
-                <TableRow
-                  key={book.id}
-                  hover
-                  sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                >
-                  <TableCell component="th" scope="row">
-                    <Typography fontWeight="medium">
-                      {book.title}
+              {filteredBooks.length > 0 ? (
+                filteredBooks.map((book) => (
+                  <TableRow
+                    key={book.id}
+                    hover
+                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                  >
+                    <TableCell component="th" scope="row">
+                      <Typography fontWeight="medium">
+                        {book.title}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{book.author}</TableCell>
+                    <TableCell>{book.genre || '-'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={book.availabilityStatus}
+                        color={book.availabilityStatus === 'AVAILABLE' ? 'success' : 'error'}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {book.availabilityStatus === 'AVAILABLE' ? (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => handleRentClick(book)}
+                          sx={{
+                            textTransform: 'none',
+                            '&:hover': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: 1
+                            }
+                          }}
+                        >
+                          Rent
+                        </Button>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Unavailable
+                        </Typography>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} align="center">
+                    <Typography color="text.secondary" sx={{ py: 3 }}>
+                      {searchTerm || availabilityFilter !== 'all'
+                        ? 'No matching books found'
+                        : 'No books available'}
                     </Typography>
                   </TableCell>
-                  <TableCell>{book.author}</TableCell>
-                  <TableCell>{book.genre || '-'}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={book.availabilityStatus}
-                      color={book.availabilityStatus === 'AVAILABLE' ? 'success' : 'error'}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {book.availabilityStatus === 'AVAILABLE' ? (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={() => handleRentClick(book)}
-                        sx={{
-                          textTransform: 'none',
-                          '&:hover': {
-                            transform: 'translateY(-1px)',
-                            boxShadow: 1
-                          }
-                        }}
-                      >
-                        Rent
-                      </Button>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Unavailable
-                      </Typography>
-                    )}
-                  </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </TableContainer>
-
-        {filteredBooks.length === 0 && (
-          <Box sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            p: 3,
-            minHeight: '100px'
-          }}>
-            <Typography variant="h6" color="text.secondary">
-              {searchTerm ? 'No matching books found' : 'No books available'}
-            </Typography>
-          </Box>
-        )}
 
         <RentalForm
           open={rentalFormOpen}
