@@ -1,14 +1,18 @@
 📚 Book Rental Management System
-
 A full-stack application for managing book rentals in a small community library.
+
 Backend: Java 17, Spring Boot, MySQL (Dockerized).
+
 Frontend: React.js.
 
 
 🚀 Features
 Manage Books (Add, Update, Delete, View).
+
 Manage Rentals (Create, Update, View History).
+
 REST APIs for frontend integration.
+
 Simple React UI for rentals.
 
 
